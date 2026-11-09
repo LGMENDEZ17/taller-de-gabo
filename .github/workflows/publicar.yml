@@ -1,0 +1,57 @@
+# Publica la web en GitHub Pages cada vez que subes cambios a la rama main.
+# Si existen las variables SUPABASE_URL y SUPABASE_ANON_KEY en
+# Settings > Secrets and variables > Actions > Variables, se escriben en config.js.
+name: Publicar sitio en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Escribir config.js con los datos de Supabase
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            node -e "require('fs').writeFileSync('config.js',
+              'window.GABO_SUPABASE_URL = ' + JSON.stringify(process.env.SUPABASE_URL.trim()) + ';\n' +
+              'window.GABO_SUPABASE_ANON_KEY = ' + JSON.stringify(process.env.SUPABASE_ANON_KEY.trim()) + ';\n')"
+            echo "config.js generado con las variables del repositorio."
+          else
+            echo "Variables SUPABASE_URL / SUPABASE_ANON_KEY no definidas: se usa config.js tal como está en el repositorio."
+          fi
+
+      - name: Preparar archivos del sitio
+        run: |
+          mkdir _site
+          cp -r index.html admin.html styles.css script.js admin.js supabase-client.js config.js assets .nojekyll _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Publicar
+        id: despliegue
+        uses: actions/deploy-pages@v4
