@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Administración | El Taller de Gabo</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-body">
+<header class="top">
+  <a class="brand" href="index.html"><img src="assets/logo-gabo.png" alt="El Taller de Gabo" width="760" height="291"></a>
+  <a class="smallbtn secondary" href="index.html" target="_blank" rel="noopener">Ver sitio web ↗</a>
+</header>
+
+<main class="admin-shell">
+  <p id="status" class="status" role="status" aria-live="polite">Cargando…</p>
+
+  <!-- Asistente cuando falta configurar Supabase -->
+  <section id="setupPanel" class="admin-panel setup hidden">
+    <span class="eyebrow">Configuración pendiente</span>
+    <h2>Activa el panel de administración</h2>
+    <p>El panel necesita una base de datos gratuita en <b>Supabase</b> para guardar fotos, solicitudes y textos con seguridad. Es un paso de una sola vez (unos 15 minutos):</p>
+    <ol>
+      <li>Crea un proyecto gratis en <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a>.</li>
+      <li>En <b>SQL Editor</b> pega y ejecuta el archivo <code>supabase.sql</code> del proyecto.</li>
+      <li>En <b>Authentication › Users › Add user</b> crea la cuenta de la administradora (marca <i>Auto Confirm User</i>) y vuelve a ejecutar la última parte de <code>supabase.sql</code>.</li>
+      <li>En <b>Project Settings › API</b> copia la <b>Project URL</b> y la clave <b>anon public</b>.</li>
+      <li>En GitHub: <b>Settings › Secrets and variables › Actions › Variables</b> crea <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code> con esos valores y vuelve a publicar.</li>
+    </ol>
+    <p class="muted">La guía completa, paso a paso, está en el archivo <code>GUIA_DESPLIEGUE.md</code>.</p>
+  </section>
+
+  <!-- Inicio de sesión -->
+  <section id="loginPanel" class="admin-panel login-box hidden">
+    <span class="eyebrow">Área privada</span>
+    <h2>Iniciar sesión</h2>
+    <p class="muted">Acceso exclusivo para la administración del taller.</p>
+    <form id="loginForm">
+      <label>Correo electrónico<input type="email" id="email" value="eltallerdegabo01@gmail.com" required autocomplete="username"></label>
+      <label>Contraseña<input type="password" id="password" required autocomplete="current-password"></label>
+      <button class="btn" type="submit">Ingresar</button>
+      <button class="link-btn" id="forgot" type="button">¿Olvidaste tu contraseña?</button>
+    </form>
+  </section>
+
+  <!-- Nueva contraseña (desde el enlace del correo) -->
+  <section id="recoveryPanel" class="admin-panel login-box hidden">
+    <h2>Crea una contraseña nueva</h2>
+    <form id="recoveryForm">
+      <label>Nueva contraseña<input type="password" id="newPass1" minlength="8" required autocomplete="new-password"></label>
+      <label>Repite la contraseña<input type="password" id="newPass2" minlength="8" required autocomplete="new-password"></label>
+      <button class="btn" type="submit">Guardar contraseña</button>
+    </form>
+  </section>
+
+  <!-- Panel privado -->
+  <div id="privatePanel" class="hidden">
+    <div class="admin-bar">
+      <div>
+        <span class="eyebrow">Panel de administración</span>
+        <h1>Hola, bienvenida al taller</h1>
+        <span class="muted small" id="currentUser"></span>
+      </div>
+      <button id="logout" class="smallbtn secondary" type="button">Cerrar sesión</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Secciones del panel">
+      <button class="tab" role="tab" id="tab-resumen" aria-controls="p-resumen" aria-selected="true">Resumen</button>
+      <button class="tab" role="tab" id="tab-solicitudes" aria-controls="p-solicitudes" aria-selected="false">Solicitudes<span class="badge" id="badgeNuevas"></span></button>
+      <button class="tab" role="tab" id="tab-portafolio" aria-controls="p-portafolio" aria-selected="false">Portafolio</button>
+      <button class="tab" role="tab" id="tab-contenido" aria-controls="p-contenido" aria-selected="false">Textos y contacto</button>
+      <button class="tab" role="tab" id="tab-despiece" aria-controls="p-despiece" aria-selected="false">Despiece</button>
+      <button class="tab" role="tab" id="tab-cuenta" aria-controls="p-cuenta" aria-selected="false">Mi cuenta</button>
+    </div>
+
+    <!-- RESUMEN -->
+    <section role="tabpanel" id="p-resumen" aria-labelledby="tab-resumen">
+      <div class="stats">
+        <div class="stat"><b id="stNuevas">0</b><span>Solicitudes nuevas</span></div>
+        <div class="stat"><b id="stTotal">0</b><span>Solicitudes totales</span></div>
+        <div class="stat"><b id="stPublicadas">0</b><span>Trabajos publicados</span></div>
+        <div class="stat"><b id="stOcultas">0</b><span>Trabajos ocultos</span></div>
+      </div>
+      <div class="admin-panel">
+        <h2>Acciones rápidas</h2>
+        <div class="quick admin-actions">
+          <button class="smallbtn" data-go="portafolio" type="button">＋ Subir foto de un trabajo</button>
+          <button class="smallbtn secondary" data-go="solicitudes" type="button">Ver solicitudes</button>
+          <button class="smallbtn secondary" data-go="contenido" type="button">Editar textos y WhatsApp</button>
+          <button class="smallbtn secondary" data-go="despiece" type="button">Calcular despiece</button>
+        </div>
+      </div>
+      <div class="admin-panel">
+        <h2>Últimas solicitudes</h2>
+        <div class="leads" id="recentLeads"></div>
+      </div>
+    </section>
+
+    <!-- SOLICITUDES -->
+    <section role="tabpanel" id="p-solicitudes" aria-labelledby="tab-solicitudes" hidden>
+      <div class="admin-panel">
+        <h2>Solicitudes de cotización</h2>
+        <p class="muted">Cada vez que un cliente envía el formulario de la web, su solicitud queda guardada aquí (además de llegar por WhatsApp).</p>
+        <div class="toolbar">
+          <select id="leadFilter" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option><option value="nueva">Nuevas</option><option value="contactada">Contactadas</option><option value="cotizada">Cotizadas</option><option value="cerrada">Cerradas</option>
+          </select>
+          <input type="search" id="leadSearch" placeholder="Buscar nombre, ciudad, servicio…" aria-label="Buscar solicitudes">
+          <button class="smallbtn secondary" id="leadsRefresh" type="button">↻ Actualizar</button>
+          <button class="smallbtn secondary" id="leadsCSV" type="button">Exportar CSV</button>
+        </div>
+        <div class="leads" id="leadList"></div>
+      </div>
+    </section>
+
+    <!-- PORTAFOLIO -->
+    <section role="tabpanel" id="p-portafolio" aria-labelledby="tab-portafolio" hidden>
+      <div class="admin-panel">
+        <h2 id="refFormTitle">Subir un trabajo nuevo</h2>
+        <p class="muted">La foto se optimiza automáticamente antes de subirla. Cuando tengas 3 o más trabajos publicados, las imágenes ilustrativas de la web se reemplazan por tus fotos reales.</p>
+        <form id="referenceForm">
+          <div class="upload">
+            <label class="drop" id="drop">
+              <span id="dropText">📷<br>Toca o arrastra<br>una foto aquí</span>
+              <img id="dropPreview" alt="" class="hidden">
+              <input type="file" id="refImage" accept="image/jpeg,image/png,image/webp" aria-label="Fotografía">
+            </label>
+            <div class="grid-two">
+              <label>Título *<input id="refTitle" required maxlength="100" placeholder="Clóset en roble natural"></label>
+              <label>Categoría<select id="refCategory"></select></label>
+              <label class="span-2">Descripción<textarea id="refDescription" maxlength="500" placeholder="Material, medidas, detalles especiales…"></textarea></label>
+              <label>Orden <span class="help">(menor número = aparece primero)</span><input type="number" id="refOrder" value="0" min="-999" max="999"></label>
+              <div>
+                <label class="check"><input type="checkbox" id="refPublished" checked> Publicado en la web</label>
+                <label class="check"><input type="checkbox" id="refFeatured"> Destacado (foto grande)</label>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="refId">
+          <div class="admin-actions">
+            <button class="smallbtn" type="submit" id="refSave">Guardar trabajo</button>
+            <button class="smallbtn secondary" id="clearReference" type="button">Cancelar / limpiar</button>
+          </div>
+        </form>
+      </div>
+      <div class="admin-panel">
+        <h2>Trabajos guardados</h2>
+        <div class="ref-grid" id="referenceList"></div>
+      </div>
+    </section>
+
+    <!-- CONTENIDO -->
+    <section role="tabpanel" id="p-contenido" aria-labelledby="tab-contenido" hidden>
+      <div class="admin-panel">
+        <h2>Textos y datos de contacto</h2>
+        <p class="muted">Lo que cambies aquí se actualiza en la página pública inmediatamente, sin tocar código.</p>
+        <form id="settingsForm"><div class="grid-two" id="settingsFields"></div>
+          <div class="admin-actions">
+            <button class="smallbtn" type="submit">Guardar cambios</button>
+            <button class="smallbtn secondary" type="button" id="settingsReset">Restaurar textos originales</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- DESPIECE -->
+    <section role="tabpanel" id="p-despiece" aria-labelledby="tab-despiece" hidden>
+      <div class="admin-panel">
+        <h2>Despiece y plano de corte</h2>
+        <p class="muted">Medidas en milímetros. Genera las piezas de un módulo rectangular o agrega piezas a mano. Tu último despiece se guarda en este navegador. Verifica diseño, veta y tolerancias antes de cortar.</p>
+        <div class="grid-three">
+          <label>Nombre del proyecto<input id="projectName" value="Mueble a medida"></label>
+          <label>Material<select id="material"><option>Melamina</option><option>Aglomerado RH</option><option>MDF laminado</option></select></label>
+          <label>Espesor tablero (mm)<input type="number" id="thickness" value="15" min="3" max="50" step="0.1"></label>
+          <label>Ancho exterior (mm)<input type="number" id="cabW" value="800" min="100" max="5000"></label>
+          <label>Alto exterior (mm)<input type="number" id="cabH" value="1800" min="100" max="5000"></label>
+          <label>Profundidad exterior (mm)<input type="number" id="cabD" value="500" min="100" max="3000"></label>
+          <label>Entrepaños interiores<input type="number" id="shelves" value="3" min="0" max="50"></label>
+          <label>Trasera<select id="backPanel"><option value="no">Sin trasera</option><option value="si">Trasera del mismo tablero</option></select></label>
+          <label>Ancho lámina (mm)<input type="number" id="sheetW" value="1830" min="100" max="6000"></label>
+          <label>Largo lámina (mm)<input type="number" id="sheetH" value="2440" min="100" max="6000"></label>
+          <label>Ancho de sierra (mm)<input type="number" id="kerf" value="3" min="0" max="20" step="0.1"></label>
+          <label>Margen perimetral (mm)<input type="number" id="margin" value="10" min="0" max="100" step="0.1"></label>
+        </div>
+        <div class="admin-actions no-print">
+          <button class="smallbtn secondary" id="generateCabinet" type="button">Crear piezas del módulo</button>
+          <button class="smallbtn secondary" id="addPart" type="button">＋ Agregar pieza</button>
+          <button class="smallbtn" id="calculate" type="button">Calcular plano de corte</button>
+          <button class="smallbtn secondary" id="printCut" type="button">Imprimir / PDF</button>
+          <button class="smallbtn secondary" id="exportCSV" type="button">Exportar CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="parts-table">
+            <thead><tr><th>Pieza</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Cantidad</th><th>Veta fija</th><th class="no-print">Acción</th></tr></thead>
+            <tbody id="partsBody"></tbody>
+          </table>
+        </div>
+        <p id="cutSummary" class="status"></p>
+        <div id="cutDrawings"></div>
+      </div>
+    </section>
+
+    <!-- CUENTA -->
+    <section role="tabpanel" id="p-cuenta" aria-labelledby="tab-cuenta" hidden>
+      <div class="admin-panel login-box" style="margin-left:0">
+        <h2>Cambiar contraseña</h2>
+        <form id="passwordForm">
+          <label>Nueva contraseña<input type="password" id="chPass1" minlength="8" required autocomplete="new-password"></label>
+          <label>Repite la contraseña<input type="password" id="chPass2" minlength="8" required autocomplete="new-password"></label>
+          <button class="smallbtn" type="submit">Actualizar contraseña</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script type="module" src="admin.js"></script>
+</body>
+</html>
