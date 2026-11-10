@@ -1,23 +1,22 @@
-
-# Requisito: Settings > Pages > Build and deployment > Source = "GitHub Actions".
-# Opcional: variables SUPABASE_URL y SUPABASE_ANON_KEY en
-# Settings > Secrets and variables > Actions > Variables (se escriben en config.js).
+# Publica la web en GitHub Pages cada vez que subes cambios a la rama main.
+# Si existen las variables SUPABASE_URL y SUPABASE_ANON_KEY en
+# Settings > Secrets and variables > Actions > Variables, se escriben en config.js.
 name: Publicar sitio en GitHub Pages
- 
+
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
- 
+
 permissions:
   contents: read
   pages: write
   id-token: write
- 
+
 concurrency:
   group: pages
   cancel-in-progress: true
- 
+
 jobs:
   publicar:
     runs-on: ubuntu-latest
@@ -26,54 +25,33 @@ jobs:
       url: ${{ steps.despliegue.outputs.page_url }}
     steps:
       - name: Descargar el código
-        uses: actions/checkout@v5
- 
-      - name: Preparar archivos del sitio
-        run: |
-          # Busca la carpeta que contiene index.html (por si se subió la carpeta del ZIP completa).
-          ORIGEN="."
-          if [ ! -f index.html ]; then
-            ENCONTRADO=$(find . -path ./.git -prune -o -name index.html -print | head -n 1)
-            if [ -z "$ENCONTRADO" ]; then
-              echo "::error::No se encontró index.html en el repositorio. Sube el CONTENIDO de la carpeta del ZIP (no la carpeta)."
-              exit 1
-            fi
-            ORIGEN=$(dirname "$ENCONTRADO")
-            echo "::warning::index.html está dentro de '$ORIGEN'. Se publicará esa carpeta. Lo ideal es tener index.html en la raíz del repositorio."
-          fi
-          mkdir -p _site
-          tar -C "$ORIGEN" --exclude='.git' --exclude='.github' --exclude='_site' \
-              --exclude='*.md' --exclude='*.sql' --exclude='*.zip' --exclude='*.pdf' -cf - . | tar -C _site -xf -
-          touch _site/.nojekyll
-          for f in index.html admin.html styles.css script.js admin.js supabase-client.js; do
-            [ -f "_site/$f" ] || echo "::warning::Falta el archivo $f en el repositorio."
-          done
-          echo "Archivos que se publicarán:"; ls -la _site
- 
+        uses: actions/checkout@v4
+
       - name: Escribir config.js con los datos de Supabase
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
         run: |
           if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
-            printf "window.GABO_SUPABASE_URL = '%s';\nwindow.GABO_SUPABASE_ANON_KEY = '%s';\n" \
-              "$(echo "$SUPABASE_URL" | tr -d "[:space:]'\\\\")" \
-              "$(echo "$SUPABASE_ANON_KEY" | tr -d "[:space:]'\\\\")" > _site/config.js
+            node -e "require('fs').writeFileSync('config.js',
+              'window.GABO_SUPABASE_URL = ' + JSON.stringify(process.env.SUPABASE_URL.trim()) + ';\n' +
+              'window.GABO_SUPABASE_ANON_KEY = ' + JSON.stringify(process.env.SUPABASE_ANON_KEY.trim()) + ';\n')"
             echo "config.js generado con las variables del repositorio."
           else
-            echo "Variables SUPABASE_URL / SUPABASE_ANON_KEY no definidas: se usa config.js tal como está."
-            [ -f _site/config.js ] || printf "window.GABO_SUPABASE_URL = '';\nwindow.GABO_SUPABASE_ANON_KEY = '';\n" > _site/config.js
+            echo "Variables SUPABASE_URL / SUPABASE_ANON_KEY no definidas: se usa config.js tal como está en el repositorio."
           fi
- 
-      - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
- 
-      - name: Empaquetar sitio
-        uses: actions/upload-pages-artifact@v4
+
+      - name: Preparar archivos del sitio
+        run: |
+          mkdir _site
+          cp -r index.html admin.html styles.css script.js admin.js supabase-client.js config.js assets .nojekyll _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
- 
+
       - name: Publicar
         id: despliegue
         uses: actions/deploy-pages@v4
- 
